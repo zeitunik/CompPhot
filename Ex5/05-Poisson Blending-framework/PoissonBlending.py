@@ -67,7 +67,7 @@ def test(K, img):
 
 def BlendImage(img1, img2, mask):
 	mask /= np.max(mask)
-	inv = np.ones(mask.shape) - mask
+	inv = 1 - mask
 	return img1*mask + img2*inv
 	
 
@@ -110,10 +110,12 @@ K_laplace = None
 # your code
 # ---------
 
+K_blur = 0.25*np.array([[0,1,0],[1,0,1],[0,1,0]])
+K_laplace = np.array([[0,-1,0],[-1,4,-1],[0,-1,0]])
+
 # blur the image using convolution:
 M = ComputeConvolutionMatrix(K_blur, h, w)
-ShowImage("blured", TransformImage(M, img))
-
+ShowImage("blurred", TransformImage(M, img))
 
 
 # naive blending:
@@ -138,10 +140,12 @@ reconstructed = None
 # ---------
 # your code
 # ---------
+## solve L x = lblend
+reconstructed = np.stack([
+	ss.linalg.spsolve(L, lblend[:,:,ch].flatten('F')).reshape(lblend.shape[:2], order='F') 
+	for ch in range(3)], axis=2)
 
 ShowImage("Combined", reconstructed)
-
-
 
 
 

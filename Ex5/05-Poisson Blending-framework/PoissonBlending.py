@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-import scipy.sparse
-
+import scipy.sparse as ss
 
 
 
@@ -25,12 +24,30 @@ def ComputeConvolutionMatrix(K, h, w):
 	# ---------
 	# your code
 	# ---------
-	
+	## assuming the kernel is of shape K = [[0,x0,0],[x1,x2,x3],[0,x4,0]]
+	values = np.array([K[0,1], K[1,0], K[1,1], K[1,2], K[2,1]])
+
+
 	# create sparse matrix from value lists
 	# ---------
 	# your code
 	# ---------
+
+	## first create the block that is on the diagonal 
+	A = ss.diags([values[4], values[2], values[0]], [-1,0,1], shape=(h,h))
 	
+	## create the sparse matrix that has A on the diagonal
+	## M.shape = (hw,hw)
+	size = h*w
+	M = ss.block_diag((A,)*w)
+	assert M.shape == (size, size)
+
+	## create another sparse matrix with the rest of the coefficients
+	B = ss.diags([values[3], values[1]],[-h, h], shape=(size, size))
+
+	## final matrix
+	M = M + B
+
 	return M.tocsr()
 	
 

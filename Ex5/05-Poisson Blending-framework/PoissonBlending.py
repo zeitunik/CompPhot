@@ -42,29 +42,56 @@ def ComputeConvolutionMatrix(K, h, w):
 	M = ss.block_diag((A,)*w)
 	assert M.shape == (size, size)
 
-	## create another sparse matrix with the rest of the coefficients
+	## create another sparse matrix with the rest of the coefficients on the 
+	## -h and h off-diagonals
 	B = ss.diags([values[3], values[1]],[-h, h], shape=(size, size))
 
 	## final matrix
 	M = M + B
 
 	return M.tocsr()
-	
 
 
 def TransformImage(M, img):
-	return np.moveaxis([
-		M.dot(img[:,:,i].flatten()).reshape(img.shape[:2])
-		for i in range(3)
-		], 0, 2)
-	
+	# return np.moveaxis([
+	# 	M.dot(img[:,:,i].flatten()).reshape(img.shape[:2])
+	# 	for i in range(3)], 0, 2)
+	return np.stack([M.dot(img[:,:,i].flatten('F')).reshape(img.shape[:2], order='F') 
+		for i in range(3)], axis = 2)
+
+def test(K, img):
+	M = ComputeConvolutionMatrix(K, img.shape[0], img.shape[1])
+	return TransformImage(M, img)
 
 def BlendImage(img1, img2, mask):
 	mask /= np.max(mask)
 	inv = np.ones(mask.shape) - mask
 	return img1*mask + img2*inv
 	
-	
+
+# Test area
+K = np.array([[0,1,0],[2,3,4],[0,5,0]])
+
+img1 = np.zeros((4,4,3))
+img1[1,1,:] = 1
+
+img2 = np.zeros((4,4,3))
+img2[2,3,:] = 1
+
+img3 = np.zeros((4,5,3))
+img3[1,1,:] = 1
+img3[2,4,:] = 1
+
+T1 = test(K, img1)
+T2 = test(K, img2)
+T3 = test(K, img3)
+
+print("Kernel:\n", K)
+print("Test matrix 1:\n", T1[:,:,0])
+print("Test matrix 2:\n", T2[:,:,0])
+print("Test matrix 3:\n", T3[:,:,0])
+
+
 # Main Programm
 img = LoadImage("diver.jpg")
 h = img.shape[0]
@@ -80,7 +107,7 @@ K_laplace = None
 
 
 
-# blure the image using convolution:
+# blur the image using convolution:
 M = ComputeConvolutionMatrix(K_blur, h, w)
 ShowImage("blured", TransformImage(M, img))
 

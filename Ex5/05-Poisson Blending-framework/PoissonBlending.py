@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import scipy.sparse as ss
-
+import scipy.signal
 
 
 # some helper functions (internally, images are represented as floats to avoid errors)
@@ -61,7 +61,9 @@ def TransformImage(M, img):
 
 def test(K, img):
 	M = ComputeConvolutionMatrix(K, img.shape[0], img.shape[1])
-	return TransformImage(M, img)
+	T = TransformImage(M, img)
+	C = np.stack([scipy.signal.convolve2d(img[:,:,ch], K, 'same') for ch in range(3)], axis=2)
+	return (T, C) 
 
 def BlendImage(img1, img2, mask):
 	mask /= np.max(mask)
@@ -82,15 +84,18 @@ img3 = np.zeros((4,5,3))
 img3[1,1,:] = 1
 img3[2,4,:] = 1
 
-T1 = test(K, img1)
-T2 = test(K, img2)
-T3 = test(K, img3)
+T1, C1 = test(K, img1)
+T2, C2 = test(K, img2)
+T3, C3 = test(K, img3)
 
 print("Kernel:\n", K)
 print("Test matrix 1:\n", T1[:,:,0])
 print("Test matrix 2:\n", T2[:,:,0])
 print("Test matrix 3:\n", T3[:,:,0])
 
+assert np.all(T1 == C1)
+assert np.all(T2 == C2)
+assert np.all(T3 == C3)
 
 # Main Programm
 img = LoadImage("diver.jpg")
@@ -104,8 +109,6 @@ K_laplace = None
 # ---------
 # your code
 # ---------
-
-
 
 # blur the image using convolution:
 M = ComputeConvolutionMatrix(K_blur, h, w)

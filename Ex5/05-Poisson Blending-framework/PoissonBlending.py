@@ -135,6 +135,7 @@ sharkL = TransformImage(L, shark)
 lblend = BlendImage(sharkL, diverL, mask)
 ShowImage("LBlend", lblend+128)
 
+lblend_flat = np.stack([lblend[:,:,ch].flatten('F') for ch in range(3)], axis=1)
 
 reconstructed = None
 # ---------
@@ -142,7 +143,7 @@ reconstructed = None
 # ---------
 ## solve L x = lblend
 reconstructed = np.stack([
-	ss.linalg.spsolve(L, lblend[:,:,ch].flatten('F')).reshape(lblend.shape[:2], order='F') 
+	ss.linalg.spsolve(L, lblend_flat[:,ch]).reshape(lblend.shape[:2], order='F') 
 	for ch in range(3)], axis=2)
 
 ShowImage("Combined", reconstructed)
@@ -156,7 +157,41 @@ constrainedReconstruction = None
 # your code
 # ---------
 
-ShowImage("Constrained", constrainedReconstruction)
+## choose the indices where the mask is = 0.
 
+idx_shark = np.where(mask==1.)
+idx_diver = np.where(mask==0.)
+
+t = 1000
+values_shark = shark[idx_shark[0][::t], idx_shark[1][::t],:]
+values_diver = img[idx_diver[0][::t], idx_diver[1][::t],:]
+
+l_shark = values_shark.shape[0]
+l_diver = values_diver.shape[0]
+
+constraints_shark = ss.csr_matrix(
+	(np.repeat(1., l_shark), 
+	(np.arange(l_shark), idx_shark[1][::t]*shark.shape[0]+idx_shark[0][::t])), 
+	(l_shark, L.shape[1]))
+constraints_diver = ss.csr_matrix(
+	(np.repeat(1., l_diver), 
+	(np.arange(l_diver), idx_diver[1][::t]*shark.shape[0]+idx_diver[0][::t])), 
+	(l_diver, L.shape[1]))
+
+L_cnst = ss.vstack([L, constraints_shark, constraints_diver])
+# L_cnst = ss.vstack([L, constraints_diver])
+lblend_cnst = np.vstack([lblend_flat, values_shark, values_diver])
+# lblend_cnst = np.vstack([lblend_flat, values_diver])
+
+# constrainedReconstruction = np.stack([
+# 	ss.linalg.lsqr(L_cnst, lblend_cnst[:,ch]).reshape(lblend.shape[:2], order='F')
+# 	for ch in range(3)], axis=2)
+
+constrainedReconstruction = [ss.linalg.lsqr(L_cnst, lblend_cnst[:,ch], atol = 1.e-8, btol = 1.e-8, show=True) for ch in range(3)]
+R = np.stack([constrainedReconstruction[ch][0].reshape(lblend.shape[:2], order='F') 
+	for ch in range(3)], axis = 2)
+
+ShowImage("Constrained", R)
+plt.show()
 
 print("done")

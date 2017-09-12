@@ -14,14 +14,6 @@ img = plt.imread("Lenna.png")[200:300,200:320,0]
 imgShape = img.shape
 pix = imgShape[0]*imgShape[1] # number of pixels
 
-# kernels
-# ---------
-# your code
-# C = ...
-# d_x = ...
-# d_y = ...
-# ---------
-
 def gkern(size=3, sigma=1.):
     ax = np.arange(-size // 2 + 1., size // 2 + 1.)
     x, y = np.meshgrid(ax, ax)
@@ -29,11 +21,11 @@ def gkern(size=3, sigma=1.):
     return kernel / np.sum(kernel)
 
 l = 0.001
-rho = 0.1 # strength of regularization
+rho = 0.5 # strength of regularization
 sigma = 0.01 # the amount of noise
 iterations = 10
 
-kernel = gkern(size=3, sigma=1)
+kernel = gkern(size=9, sigma=3)
 # kernel = np.ones((3,3))
 # print(C)
 d_x = np.array([[0,0,0],[0,-1,1],[0,0,0]])
@@ -41,26 +33,24 @@ d_y = np.array([[0,0,0],[0,-1,0],[0,1,0]])
 
 
 def C(x):
-	# assume x given in imgShape
 	# kernel = gkern(size=9, sigma=1)
-	blur = convolve(x, kernel, 'same')
+	blur = convolve(x.reshape(imgShape), kernel, 'same')
 	return blur.flatten()
 
 def D(x):
 	# ---------
 	# your code
 	# ---------
-	# assume x given in imgShape
-	delta_x = convolve(x, d_x, 'same')
-	delta_y = convolve(x, d_y, 'same')
+	img = x.reshape(imgShape)
+	delta_x = convolve(img, d_x, 'same')
+	delta_y = convolve(img, d_y, 'same')
 	return np.hstack([delta_x.flatten(), delta_y.flatten()])
 
 def MatVec(x):
 	# ---------
 	# your code
 	# ---------
-	y = x.reshape(imgShape)
-	return np.hstack([C(y), rho*D(y)])
+	return np.hstack([C(x), rho*D(x)])
 	
 def RMatVec(x):
 	# ---------
@@ -81,7 +71,11 @@ def shrink(a, k):
 	# ---------
 	# your code
 	# ---------
-	pass
+	ret = np.zeros(a.shape)
+	ret[a>k] = a[a>k] - k
+	ret[a<-k] = a[a<-k] + k
+
+	return ret
 
 
 def Optimization(b):	
@@ -91,23 +85,31 @@ def Optimization(b):
 	z = np.zeros((pix*2))
 	u = z
 	
+	A = LinearOperator((3*pix, pix), matvec=MatVec, rmatvec=RMatVec)
 	for i in range(iterations):
 		print(i)
 		
 		# x step:
 		# ...
+		v = np.hstack([b, rho*(z-u)])
+		x = lsmr(A, v)[0] #show=True, atol= , btol =
 		
 		# z step
 		# ...
-		
+		w = D(x) + u
+		z = shrink(w, l/rho)
+
 		# u step
 		# ...
+		u = w - z
 		
 		
 		print("Error: ", np.linalg.norm(img.flatten()-x))
 	
 	# Plot the results
 	# ...
+	plt.imshow(x.reshape(imgShape))
+	plt.show()
 	
 	return x.reshape(imgShape)
 	
@@ -132,8 +134,11 @@ def EvaluateShrink():
 	# ---------
 	# your code
 	# ---------
-	pass
-	
+	x = np.arange(-10, 11)
+	s = shrink(x, 3)
+	plt.plot(x, s)
+	plt.grid(True, linestyle='--')
+	plt.show()
 	
 
 # the main programm:
@@ -144,9 +149,9 @@ EvaluateLinOp()
 EvaluateShrink()
 
 # # deblurring
-plt.imsave("original.png", img)
-blurred = convolve(img, C, 'same')
+# plt.imsave("original.png", img)
+blurred = convolve(img, kernel, 'same')
 blurred += np.random.normal(0, sigma, blurred.shape)
-plt.imsave("blurred.png", blurred)
+# plt.imsave("blurred.png", blurred)
 x = Optimization(blurred)
-plt.imsave("result.png", x)
+# plt.imsave("result.png", x)
